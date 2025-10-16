@@ -1,0 +1,62 @@
+[package]
+name = "recog"
+version = "0.1.0"
+edition = "2021"
+description = "Rust-native Recog library for fingerprint-based recognition"
+authors = ["Recog Team"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/threatcode/recog-rs"
+keywords = ["fingerprinting", "recognition", "network", "security"]
+categories = ["network-programming", "parsing", "api-bindings"]
+
+[dependencies]
+# Core dependencies
+regex = "1.10"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+quick-xml = { version = "0.36", features = ["serialize"] }
+base64 = "0.22"
+thiserror = "1.0"
+
+# CLI dependencies
+clap = { version = "4.5", features = ["derive"], optional = true }
+
+# Async dependencies (optional)
+tokio = { version = "1.38", features = ["full"], optional = true }
+reqwest = { version = "0.12", features = ["json"], optional = true }
+futures = { version = "0.3", optional = true }
+
+# Network integration dependencies (optional)
+async_ftp = { version = "6.0", optional = true }
+native-tls = { version = "0.2", optional = true }
+
+[features]
+default = ["cli"]
+cli = ["clap"]
+async = ["tokio"]
+network = ["tokio", "reqwest", "async_ftp", "native-tls"]
+full = ["cli", "async", "network"]
+
+[dev-dependencies]
+tempfile = "3.10"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "fingerprint_matching"
+harness = false
+
+[[bench]]
+name = "xml_loading"
+harness = false
+
+[[bin]]
+name = "recog_match"
+required-features = ["cli"]
+
+[[bin]]
+name = "recog_verify"
+required-features = ["cli"]
+
+[[example]]
+name = "plugin_demo"
+path = "examples/plugin_demo.rs"

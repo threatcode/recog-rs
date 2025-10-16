@@ -1,0 +1,209 @@
+name: Security
+
+on:
+  schedule:
+    # Run security scans daily
+    - cron: '0 6 * * *'
+  push:
+    branches: [ main ]
+    paths:
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+
+jobs:
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Install cargo-audit
+      run: cargo install cargo-audit
+
+    - name: Run security audit
+      run: cargo audit --ignore-yanked
+
+    - name: Generate security report
+      run: |
+        echo "## Security Audit Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        cargo audit --ignore-yanked --format json > security-audit.json || true
+
+        if [ -f security-audit.json ]; then
+          echo "Audit completed. Check artifacts for detailed results." >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Upload security report
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-audit-report
+        path: security-audit.json
+
+  dependency-check:
+    name: Dependency Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Install cargo-outdated and cargo-tree
+      run: |
+        cargo install cargo-outdated
+        cargo install cargo-tree
+
+    - name: Check for outdated dependencies
+      run: |
+        echo "## Dependency Status" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        cargo outdated > outdated-deps.txt || echo "Some dependencies may be outdated"
+
+    - name: Analyze dependency tree
+      run: |
+        echo "## Dependency Tree" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        cargo tree --all-features >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+    - name: Upload dependency reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: dependency-reports
+        path: |
+          outdated-deps.txt
+
+  license-check:
+    name: License Compatibility
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install cargo-deny (if available)
+      run: |
+        if cargo install cargo-deny 2>/dev/null; then
+          echo "cargo-deny installed successfully"
+        else
+          echo "cargo-deny not available, will use basic checks"
+        fi
+
+    - name: Check license compatibility
+      run: |
+        echo "## License Compatibility Check" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        # Basic license check for our dependencies
+        echo "Checking license compatibility..." >> $GITHUB_STEP_SUMMARY
+
+        if command -v cargo-deny >/dev/null 2>&1; then
+          cargo deny check licenses >> $GITHUB_STEP_SUMMARY 2>&1 || echo "License check completed with warnings"
+        else
+          # Fallback: basic check using cargo-tree
+          cargo install cargo-tree 2>/dev/null || true
+          if command -v cargo-tree >/dev/null 2>&1; then
+            echo "Top-level dependencies:" >> $GITHUB_STEP_SUMMARY
+            cargo tree --depth 1 >> $GITHUB_STEP_SUMMARY
+          fi
+        fi
+
+  code-quality:
+    name: Code Quality Scan
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+
+    - name: Run Clippy with security warnings
+      run: |
+        echo "## Code Quality Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        # Run Clippy with additional security-focused checks
+        cargo clippy --all-targets --all-features -- \
+          -D warnings \
+          -D clippy::cast_lossless \
+          -D clippy::enum_glob_use \
+          -D clippy::fallible_impl_from \
+          -D clippy::implicit_clone \
+          -D clippy::inconsistent_struct_constructor \
+          -D clippy::inefficient_to_string \
+          -D clippy::large_stack_arrays \
+          -D clippy::manual_ok_or \
+          -D clippy::needless_collect \
+          -D clippy::redundant_clone \
+          -D clippy::string_add_assign \
+          -D clippy::string_add \
+          -D clippy::unnested_or_patterns \
+          -D clippy::unused_self \
+          -D clippy::useless_transmute \
+          -D clippy::verbose_file_reads \
+          --allow clippy::missing_errors_doc \
+          --allow clippy::missing_panics_doc \
+          --allow clippy::module_name_repetitions \
+          --allow clippy::must_use_candidate \
+          --allow clippy::similar_names \
+          > clippy-report.txt 2>&1 || true
+
+        if [ -f clippy-report.txt ]; then
+          echo "Clippy analysis completed." >> $GITHUB_STEP_SUMMARY
+          tail -20 clippy-report.txt >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Upload code quality reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: code-quality-reports
+        path: |
+          clippy-report.txt
+
+  vulnerability-scan:
+    name: Vulnerability Scan
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Run cargo-geiger (if available)
+      run: |
+        if cargo install cargo-geiger 2>/dev/null; then
+          echo "## Unsafe Code Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cargo geiger --all-features >> $GITHUB_STEP_SUMMARY 2>&1 || echo "Geiger analysis completed"
+        else
+          echo "cargo-geiger not available, skipping unsafe code analysis"
+        fi
+
+    - name: Check for unsafe code manually
+      run: |
+        echo "## Manual Unsafe Code Check" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        unsafe_count=$(grep -r "unsafe" src/ --include="*.rs" | wc -l)
+        echo "Found $unsafe_count instances of 'unsafe' in source code" >> $GITHUB_STEP_SUMMARY
+
+        if [ "$unsafe_count" -eq 0 ]; then
+          echo "✅ No unsafe code detected - excellent memory safety!" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️  Found unsafe code - please review for necessity" >> $GITHUB_STEP_SUMMARY
+          grep -r "unsafe" src/ --include="*.rs" -A 2 -B 2 >> $GITHUB_STEP_SUMMARY
+        fi

@@ -1,0 +1,98 @@
+<?xml version="1.0"?>
+<fingerprints>
+    <!-- Apache HTTP Server -->
+    <fingerprint pattern="^Apache/(\d+\.\d+(?:\.\d+)?)">
+        <description>Apache HTTP Server</description>
+        <example value="Apache/2.4.41">
+            <param name="hw.product" value="Apache"/>
+            <param name="hw.version" value="2.4.41"/>
+        </example>
+        <example value="Apache/2.2.34">
+            <param name="hw.product" value="Apache"/>
+            <param name="hw.version" value="2.2.34"/>
+        </example>
+        <param pos="1" name="hw.version"/>
+    </fingerprint>
+
+    <!-- nginx -->
+    <fingerprint pattern="^nginx/(\d+\.\d+(?:\.\d+)?)">
+        <description>nginx</description>
+        <example value="nginx/1.20.0">
+            <param name="hw.product" value="nginx"/>
+            <param name="hw.version" value="1.20.0"/>
+        </example>
+        <example value="nginx/1.18.0">
+            <param name="hw.product" value="nginx"/>
+            <param name="hw.version" value="1.18.0"/>
+        </example>
+        <param pos="1" name="hw.version"/>
+    </fingerprint>
+
+    <!-- Microsoft IIS -->
+    <fingerprint pattern="^Microsoft-IIS/(\d+\.\d+)">
+        <description>Microsoft Internet Information Services (IIS)</description>
+        <example value="Microsoft-IIS/10.0">
+            <param name="hw.product" value="IIS"/>
+            <param name="hw.version" value="10.0"/>
+        </example>
+        <example value="Microsoft-IIS/8.5">
+            <param name="hw.product" value="IIS"/>
+            <param name="hw.version" value="8.5"/>
+        </example>
+        <param pos="1" name="hw.version"/>
+    </fingerprint>
+
+    <!-- Lighttpd -->
+    <fingerprint pattern="^lighttpd/(\d+\.\d+(?:\.\d+)?)">
+        <description>lighttpd</description>
+        <example value="lighttpd/1.4.54">
+            <param name="hw.product" value="lighttpd"/>
+            <param name="hw.version" value="1.4.54"/>
+        </example>
+        <param pos="1" name="hw.version"/>
+    </fingerprint>
+
+    <!-- Tomcat -->
+    <fingerprint pattern="^Apache Tomcat/(\d+\.\d+(?:\.\d+)?)">
+        <description>Apache Tomcat</description>
+        <example value="Apache Tomcat/9.0.37">
+            <param name="hw.product" value="Tomcat"/>
+            <param name="hw.version" value="9.0.37"/>
+        </example>
+        <param pos="1" name="hw.version"/>
+    </fingerprint>
+
+    <!-- Base64 encoded example -->
+    <fingerprint pattern="test-pattern">
+        <description>Test pattern with base64 example</description>
+        <example value="dGVzdCBkYXRh" encoding="base64">
+            <param name="test" value="test data"/>
+        </example>
+    </fingerprint>
+
+    <!-- Complex pattern with multiple parameters -->
+    <fingerprint pattern="^Server:\s*(.+)/(\d+\.\d+(?:\.\d+)?)\s*\((.+)\)">
+        <description>Generic server identification</description>
+        <example value="Server: Apache/2.4.41 (Ubuntu)">
+            <param name="hw.product" value="Apache"/>
+            <param name="hw.version" value="2.4.41"/>
+            <param name="os.family" value="Ubuntu"/>
+        </example>
+        <param pos="1" name="hw.product"/>
+        <param pos="2" name="hw.version"/>
+        <param pos="3" name="os.family"/>
+    </fingerprint>
+
+    <!-- SSH Server identification -->
+    <fingerprint pattern="^SSH-(\d+\.\d+)-OpenSSH[_\-]([\w\.]+)">
+        <description>OpenSSH Server</description>
+        <example value="SSH-2.0-OpenSSH_8.2p1">
+            <param name="service.protocol" value="ssh"/>
+            <param name="service.version" value="2.0"/>
+            <param name="hw.product" value="OpenSSH"/>
+            <param name="hw.version" value="8.2p1"/>
+        </example>
+        <param pos="1" name="service.version"/>
+        <param pos="2" name="hw.version"/>
+    </fingerprint>
+</fingerprints>

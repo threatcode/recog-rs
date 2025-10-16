@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<fingerprints>
+    <fingerprint pattern="Apache/(\d+\.\d+)">
+        <description>Apache HTTP Server</description>
+        <example value="Apache/2.4.41">
+            <param name="hw.product" value="Apache"/>
+            <param name="hw.version" value="2.4.41"/>
+        </example>
+        <param pos="1" name="hw.version"/>
+    </fingerprint>
+</fingerprints>

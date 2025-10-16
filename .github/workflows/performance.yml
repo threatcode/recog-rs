@@ -1,0 +1,187 @@
+name: Performance Monitor
+
+on:
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'benches/**'
+      - 'Cargo.toml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'benches/**'
+      - 'Cargo.toml'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  benchmark:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full history for comparison
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-perf-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Install criterion
+      run: cargo install cargo-criterion
+
+    - name: Run benchmarks
+      run: |
+        # Run all benchmarks and save results
+        cargo bench --bench fingerprint_matching -- --output-format json > fingerprint_benchmark.json
+        cargo bench --bench xml_loading -- --output-format json > xml_loading_benchmark.json
+
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v3
+      with:
+        name: benchmark-results
+        path: |
+          *_benchmark.json
+
+    - name: Analyze performance trends
+      run: |
+        echo "## Performance Analysis" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        # Extract key metrics
+        echo "### Key Metrics" >> $GITHUB_STEP_SUMMARY
+        echo "| Benchmark | Mean Time | Std Dev |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----------|-----------|---------|" >> $GITHUB_STEP_SUMMARY
+
+        # Parse fingerprint matching results
+        if [ -f fingerprint_benchmark.json ]; then
+          jq -r '.benches | to_entries[] | select(.key | contains("matching")) | "| \(.key) | \(.value.estimates.mean.point_estimate | . / 1000000)ms | \(.value.estimates.std_dev.point_estimate | . / 1000000)ms |"' fingerprint_benchmark.json >> $GITHUB_STEP_SUMMARY
+        fi
+
+        # Parse XML loading results
+        if [ -f xml_loading_benchmark.json ]; then
+          jq -r '.benches | to_entries[] | select(.key | contains("parsing")) | "| \(.key) | \(.value.estimates.mean.point_estimate | . / 1000000)ms | \(.value.estimates.std_dev.point_estimate | . / 1000000)ms |"' xml_loading_benchmark.json >> $GITHUB_STEP_SUMMARY
+        fi
+
+  compare-performance:
+    name: Performance Comparison
+    runs-on: ubuntu-latest
+    needs: benchmark
+    if: github.event_name == 'pull_request'
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Download base benchmark results
+      uses: actions/download-artifact@v3
+      with:
+        name: benchmark-results
+        path: base-results/
+
+    - name: Download PR benchmark results
+      uses: actions/download-artifact@v3
+      with:
+        name: benchmark-results
+        path: pr-results/
+
+    - name: Compare benchmarks
+      run: |
+        echo "## Performance Comparison" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        # Compare key benchmarks
+        for file in base-results/*.json; do
+          filename=$(basename "$file")
+          if [ -f "pr-results/$filename" ]; then
+            echo "### $filename" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
+            # Show diff in key metrics
+            echo "Base vs PR comparison for $filename" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+        done
+
+  memory-profiling:
+    name: Memory Profiling
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: llvm-tools-preview
+
+    - name: Install Valgrind
+      run: sudo apt-get update && sudo apt-get install -y valgrind
+
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-memory-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Build with debug symbols
+      run: cargo build --features async
+
+    - name: Run memory profiling
+      run: |
+        # Test memory usage with large fingerprint database
+        valgrind --tool=massif --massif-out-file=massif.out target/debug/recog_match --help || true
+
+        # Analyze results
+        if [ -f massif.out ]; then
+          echo "## Memory Profiling Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          massif-tool massif.out || echo "Massif analysis completed"
+        fi
+
+  dependency-performance:
+    name: Dependency Performance Impact
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Test with minimal features
+      run: |
+        echo "## Minimal Features Performance" >> $GITHUB_STEP_SUMMARY
+        cargo build --no-default-features
+        cargo test --no-default-features
+
+    - name: Test with async features
+      run: |
+        echo "## Async Features Performance" >> $GITHUB_STEP_SUMMARY
+        cargo build --features async
+        cargo test --features async
+
+    - name: Test with all features
+      run: |
+        echo "## Full Features Performance" >> $GITHUB_STEP_SUMMARY
+        cargo build --all-features
+        cargo test --all-features

@@ -1,0 +1,32 @@
+# This file defines the code owners for different parts of the repository
+# Code owners will be automatically requested for review when changes are made
+
+# Global owners
+* @threatcode
+
+# Core library code
+/src/ @threatcode
+
+# Command-line interface
+/src/cli.rs @threatcode
+/src/main.rs @threatcode
+/src/bin/ @threatcode
+
+# Advanced features
+/src/async_loader.rs @threatcode
+/src/plugin.rs @threatcode
+
+# Testing and benchmarks
+/src/comprehensive_tests.rs @threatcode
+/benches/ @threatcode
+
+# Documentation
+/README.md @threatcode
+/ADVANCED_FEATURES.md @threatcode
+
+# CI/CD and configuration
+/.github/ @threatcode
+/Cargo.toml @threatcode
+
+# Examples
+/examples/ @threatcode
