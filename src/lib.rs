@@ -4,7 +4,6 @@
 //! matching text patterns against fingerprints, and extracting parameters.
 //! It's designed to be a high-performance, safe alternative to other Recog implementations.
 
-pub mod async_loader;
 pub mod cli;
 pub mod comprehensive_tests;
 pub mod error;

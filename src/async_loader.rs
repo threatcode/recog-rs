@@ -8,10 +8,10 @@
 use crate::error::{RecogError, RecogResult};
 use crate::fingerprint::{Example, Fingerprint, FingerprintDatabase};
 use crate::params::Param;
-use base64::{decode, encode};
-use serde::{Deserialize, Serialize};
+use base64::{engine::general_purpose, Engine as _};
+use serde::Deserialize;
 use std::path::Path;
-use tokio::{fs, task};
+use tokio::{fs, io::AsyncReadExt, task};
 
 /// Async version of XML loading from file
 pub async fn load_fingerprints_from_file_async<P: AsRef<Path>>(
@@ -29,7 +29,7 @@ pub async fn load_fingerprints_from_xml_async(
     // For now, we use the synchronous parser since we don't have async XML parsing
     // In a production system, we might want to use a streaming XML parser
     let xml_content = xml_content.to_string();
-    let db: FingerprintDatabase = task::spawn_blocking(move || {
+    let db = task::spawn_blocking(move || {
         let xml_fps: XmlFingerprints = quick_xml::de::from_str(&xml_content)
             .map_err(|e| RecogError::custom(format!("XML parsing error: {}", e)))?;
         let mut db = FingerprintDatabase::new();
@@ -73,7 +73,7 @@ pub async fn load_multiple_databases_async<P: AsRef<Path>>(
         let db = handle
             .await
             .map_err(|e| RecogError::custom(format!("Task join error: {}", e)))?;
-        databases.push(db);
+        databases.push(db?);
     }
 
     Ok(databases)
