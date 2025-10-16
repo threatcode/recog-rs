@@ -91,7 +91,7 @@ jobs:
       run: cargo bench --bench xml_loading -- --output-format bencher | tee -a benchmark-results.txt
 
     - name: Upload benchmark results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: benchmark-results
         path: benchmark-results.txt
@@ -152,7 +152,7 @@ jobs:
       run: cargo doc --all-features --no-deps
 
     - name: Upload documentation
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: documentation
         path: target/doc
@@ -203,7 +203,7 @@ jobs:
       run: cargo test --release --target ${{ matrix.target }} --all-features
 
     - name: Upload release artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: recog-${{ matrix.target }}
         path: target/${{ matrix.target }}/release/
@@ -218,7 +218,7 @@ jobs:
         fi
 
     - name: Upload release archives
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: recog-archives
         path: |
