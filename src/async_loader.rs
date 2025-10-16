@@ -14,14 +14,18 @@ use std::path::Path;
 use tokio::{fs, task};
 
 /// Async version of XML loading from file
-pub async fn load_fingerprints_from_file_async<P: AsRef<Path>>(path: P) -> RecogResult<FingerprintDatabase> {
+pub async fn load_fingerprints_from_file_async<P: AsRef<Path>>(
+    path: P,
+) -> RecogResult<FingerprintDatabase> {
     let path = path.as_ref().to_path_buf();
     let xml_content: String = fs::read_to_string(&path).await?;
     load_fingerprints_from_xml_async(&xml_content).await
 }
 
 /// Async version of XML loading from string
-pub async fn load_fingerprints_from_xml_async(xml_content: &str) -> RecogResult<FingerprintDatabase> {
+pub async fn load_fingerprints_from_xml_async(
+    xml_content: &str,
+) -> RecogResult<FingerprintDatabase> {
     // For now, we use the synchronous parser since we don't have async XML parsing
     // In a production system, we might want to use a streaming XML parser
     let xml_content = xml_content.to_string();
@@ -36,7 +40,9 @@ pub async fn load_fingerprints_from_xml_async(xml_content: &str) -> RecogResult<
         }
 
         Ok(db)
-    }).await.map_err(|e| RecogError::custom(format!("Task join error: {}", e)))?;
+    })
+    .await
+    .map_err(|e| RecogError::custom(format!("Task join error: {}", e)))?;
 
     Ok(db)
 }
@@ -49,22 +55,24 @@ pub async fn save_fingerprints_to_xml_async(_db: &FingerprintDatabase) -> RecogR
 }
 
 /// Async loader for multiple fingerprint files concurrently
-pub async fn load_multiple_databases_async<P: AsRef<Path>>(paths: &[P]) -> RecogResult<Vec<FingerprintDatabase>> {
+pub async fn load_multiple_databases_async<P: AsRef<Path>>(
+    paths: &[P],
+) -> RecogResult<Vec<FingerprintDatabase>> {
     let mut databases = Vec::new();
 
     // Process files concurrently
     let mut handles = Vec::new();
     for path in paths {
         let path = path.as_ref().to_path_buf();
-        let handle = tokio::spawn(async move {
-            load_fingerprints_from_file_async(path).await
-        });
+        let handle = tokio::spawn(async move { load_fingerprints_from_file_async(path).await });
         handles.push(handle);
     }
 
     // Wait for all to complete
     for handle in handles {
-        let db = handle.await.map_err(|e| RecogError::custom(format!("Task join error: {}", e)))?;
+        let db = handle
+            .await
+            .map_err(|e| RecogError::custom(format!("Task join error: {}", e)))?;
         databases.push(db);
     }
 
@@ -83,7 +91,10 @@ impl StreamingXmlLoader {
     }
 
     /// Load fingerprints from a large XML file in chunks
-    pub async fn load_large_file_streaming<P: AsRef<Path>>(&self, path: P) -> RecogResult<FingerprintDatabase> {
+    pub async fn load_large_file_streaming<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> RecogResult<FingerprintDatabase> {
         let path = path.as_ref();
         let mut file = fs::File::open(path).await?;
         let mut buffer = Vec::new();
@@ -210,7 +221,7 @@ impl XmlExample {
             value
         } else {
             return Err(RecogError::invalid_fingerprint_data(
-                "Example must have either value or filename attribute"
+                "Example must have either value or filename attribute",
             ));
         };
 
@@ -290,7 +301,8 @@ mod tests {
         let mut files = Vec::new();
         for i in 0..3 {
             let xml_file = temp_dir.path().join(format!("test{}.xml", i));
-            let xml_content = format!(r#"
+            let xml_content = format!(
+                r#"
                 <fingerprints>
                     <fingerprint pattern="^Pattern{}/(.+)$">
                         <description>Pattern {}</description>
@@ -298,7 +310,9 @@ mod tests {
                         <param pos="1" name="value"/>
                     </fingerprint>
                 </fingerprints>
-            "#, i, i, i, i);
+            "#,
+                i, i, i, i
+            );
 
             tokio::fs::write(&xml_file, xml_content).await.unwrap();
             files.push(xml_file);
@@ -319,15 +333,20 @@ mod tests {
         let xml_file = temp_dir.path().join("large.xml");
 
         // Create a larger XML file
-        let mut xml_content = String::from(r#"<fingerprints matches="test" protocol="test" database_type="service">"#);
+        let mut xml_content = String::from(
+            r#"<fingerprints matches="test" protocol="test" database_type="service">"#,
+        );
         for i in 0..100 {
-            xml_content.push_str(&format!(r#"
+            xml_content.push_str(&format!(
+                r#"
                 <fingerprint pattern="^Pattern{}: (.+)$">
                     <description>Pattern {}</description>
                     <example>Pattern{}: value{}</example>
                     <param pos="1" name="value"/>
                 </fingerprint>
-            "#, i, i, i, i));
+            "#,
+                i, i, i, i
+            ));
         }
         xml_content.push_str("</fingerprints>");
 

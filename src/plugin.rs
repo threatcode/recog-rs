@@ -3,7 +3,7 @@
 //! This module provides a plugin system similar to the Java implementation,
 //! allowing users to implement custom pattern matching engines beyond the default regex-based matcher.
 
-use crate::error::{RecogError, RecogResult};
+use crate::error::RecogResult;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -116,7 +116,10 @@ pub struct StringPatternMatcher {
 impl StringPatternMatcher {
     /// Create a new string pattern matcher
     pub fn new(pattern: String, description: String) -> Self {
-        Self { pattern, description }
+        Self {
+            pattern,
+            description,
+        }
     }
 }
 
@@ -320,7 +323,13 @@ impl PluginFingerprint {
         params: Vec<crate::params::Param>,
     ) -> RecogResult<Self> {
         let regex_matcher = RegexPatternMatcher::new(pattern, description)?;
-        Ok(Self::new(id, description.to_string(), Box::new(regex_matcher), examples, params))
+        Ok(Self::new(
+            id,
+            description.to_string(),
+            Box::new(regex_matcher),
+            examples,
+            params,
+        ))
     }
 
     /// Test this fingerprint against input text
@@ -334,7 +343,10 @@ impl PluginFingerprint {
 
         for example in &self.examples {
             let text = if example.is_base64 {
-                let decoded = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &example.value)?;
+                let decoded = base64::Engine::decode(
+                    &base64::engine::general_purpose::STANDARD,
+                    &example.value,
+                )?;
                 String::from_utf8(decoded)?
             } else {
                 example.value.clone()
@@ -405,7 +417,10 @@ mod tests {
         let result = matcher.matches("exact match").unwrap();
 
         assert!(result.matched);
-        assert_eq!(result.params.get("matched_string"), Some(&"exact match".to_string()));
+        assert_eq!(
+            result.params.get("matched_string"),
+            Some(&"exact match".to_string())
+        );
     }
 
     #[test]
@@ -434,7 +449,10 @@ mod tests {
         let regex_matcher = Box::new(RegexPatternMatcher::new(r"^test", "Test matcher").unwrap());
         registry.register("regex_test".to_string(), regex_matcher);
 
-        let string_matcher = Box::new(StringPatternMatcher::new("hello".to_string(), "String matcher"));
+        let string_matcher = Box::new(StringPatternMatcher::new(
+            "hello".to_string(),
+            "String matcher",
+        ));
         registry.register("string_test".to_string(), string_matcher);
 
         assert_eq!(registry.list_matchers().len(), 2);
@@ -462,7 +480,8 @@ mod tests {
             "Apache HTTP Server",
             examples,
             params,
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(fingerprint.id, "apache_server");
         assert_eq!(fingerprint.description, "Apache HTTP Server");

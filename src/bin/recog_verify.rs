@@ -43,9 +43,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let matcher = Matcher::new(db.clone());
             let results = matcher.match_text(&text);
 
-            let matched = results.iter().any(|r| {
-                r.fingerprint.description == fingerprint.description
-            });
+            let matched = results
+                .iter()
+                .any(|r| r.fingerprint.description == fingerprint.description);
 
             if matched {
                 matched_examples += 1;
@@ -67,27 +67,50 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     match args.format.as_str() {
         "json" => {
             let mut result = serde_json::Map::new();
-            result.insert("total_examples".to_string(), serde_json::Value::Number(total_examples.into()));
-            result.insert("matched_examples".to_string(), serde_json::Value::Number(matched_examples.into()));
-            result.insert("failed_examples".to_string(), serde_json::Value::Number(failures.len().into()));
+            result.insert(
+                "total_examples".to_string(),
+                serde_json::Value::Number(total_examples.into()),
+            );
+            result.insert(
+                "matched_examples".to_string(),
+                serde_json::Value::Number(matched_examples.into()),
+            );
+            result.insert(
+                "failed_examples".to_string(),
+                serde_json::Value::Number(failures.len().into()),
+            );
 
             if args.verbose {
                 let failures_json: Vec<serde_json::Value> = failures
                     .iter()
                     .map(|(desc, text)| {
                         let mut obj = serde_json::Map::new();
-                        obj.insert("description".to_string(), serde_json::Value::String(desc.clone()));
+                        obj.insert(
+                            "description".to_string(),
+                            serde_json::Value::String(desc.clone()),
+                        );
                         obj.insert("input".to_string(), serde_json::Value::String(text.clone()));
                         serde_json::Value::Object(obj)
                     })
                     .collect();
 
-                result.insert("failures".to_string(), serde_json::Value::Array(failures_json));
+                result.insert(
+                    "failures".to_string(),
+                    serde_json::Value::Array(failures_json),
+                );
             }
 
-            result.insert("success_rate".to_string(), serde_json::Value::Number(serde_json::Number::from_f64(
-                if total_examples > 0 { matched_examples as f64 / total_examples as f64 } else { 0.0 }
-            ).unwrap_or(serde_json::Number::from(0))));
+            result.insert(
+                "success_rate".to_string(),
+                serde_json::Value::Number(
+                    serde_json::Number::from_f64(if total_examples > 0 {
+                        matched_examples as f64 / total_examples as f64
+                    } else {
+                        0.0
+                    })
+                    .unwrap_or(serde_json::Number::from(0)),
+                ),
+            );
 
             println!("{}", serde_json::to_string_pretty(&result)?);
         }
@@ -98,7 +121,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("  Failed examples: {}", failures.len());
 
             if total_examples > 0 {
-                println!("  Success rate: {:.2}%", (matched_examples as f64 / total_examples as f64) * 100.0);
+                println!(
+                    "  Success rate: {:.2}%",
+                    (matched_examples as f64 / total_examples as f64) * 100.0
+                );
             }
 
             if !failures.is_empty() && args.verbose {

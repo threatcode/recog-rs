@@ -8,16 +8,21 @@ use recog::loader::load_fingerprints_from_xml;
 
 /// Generate XML with varying numbers of fingerprints for scaling tests
 fn generate_test_xml(count: usize) -> String {
-    let mut xml = String::from(r#"<fingerprints matches="test" protocol="test" database_type="service" preference="0.90">"#);
+    let mut xml = String::from(
+        r#"<fingerprints matches="test" protocol="test" database_type="service" preference="0.90">"#,
+    );
 
     for i in 0..count {
-        xml.push_str(&format!(r#"
+        xml.push_str(&format!(
+            r#"
             <fingerprint pattern="^TestPattern{}: (.+)$">
                 <description>Test Pattern {}</description>
                 <example>TestPattern{}: value{}</example>
                 <param pos="1" name="value"/>
             </fingerprint>
-        "#, i, i, i, i));
+        "#,
+            i, i, i, i
+        ));
     }
     xml.push_str("</fingerprints>");
     xml

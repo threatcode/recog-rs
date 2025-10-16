@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Core data structures for Recog fingerprints
-use crate::{error::{RecogError, RecogResult}, params::Param};
+use crate::{error::RecogResult, params::Param};
 
 /// A fingerprint pattern for matching against network banners
 #[derive(Debug, Clone)]

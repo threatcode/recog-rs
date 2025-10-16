@@ -110,7 +110,10 @@ mod tests {
         assert!(matches!(custom_error, RecogError::Custom { .. }));
 
         let fingerprint_error = RecogError::invalid_fingerprint_data("invalid pattern");
-        assert!(matches!(fingerprint_error, RecogError::InvalidFingerprintData { .. }));
+        assert!(matches!(
+            fingerprint_error,
+            RecogError::InvalidFingerprintData { .. }
+        ));
 
         let param_error = RecogError::parameter("missing parameter");
         assert!(matches!(param_error, RecogError::Parameter { .. }));

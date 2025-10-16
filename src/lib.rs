@@ -19,13 +19,16 @@ pub mod async_loader;
 
 // Re-export main types for convenience
 #[cfg(feature = "async")]
-pub use async_loader::{load_fingerprints_from_file_async, load_fingerprints_from_xml_async, load_multiple_databases_async, StreamingXmlLoader};
+pub use async_loader::{
+    load_fingerprints_from_file_async, load_fingerprints_from_xml_async,
+    load_multiple_databases_async, StreamingXmlLoader,
+};
 pub use error::{RecogError, RecogResult};
-pub use fingerprint::{Fingerprint, FingerprintDatabase, Example};
-pub use matcher::{Matcher, MatchResult};
+pub use fingerprint::{Example, Fingerprint, FingerprintDatabase};
+pub use loader::{load_fingerprints_from_file, load_fingerprints_from_xml};
+pub use matcher::{MatchResult, Matcher};
 pub use params::{Param, ParamInterpolator};
-pub use loader::{load_fingerprints_from_xml, load_fingerprints_from_file};
 pub use plugin::{
-    PatternMatcher, PatternMatchResult, PatternMatcherRegistry, PluginFingerprint,
-    RegexPatternMatcher, StringPatternMatcher, FuzzyPatternMatcher
+    FuzzyPatternMatcher, PatternMatchResult, PatternMatcher, PatternMatcherRegistry,
+    PluginFingerprint, RegexPatternMatcher, StringPatternMatcher,
 };

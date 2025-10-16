@@ -3,7 +3,7 @@ use crate::fingerprint::{Example, Fingerprint, FingerprintDatabase};
 use crate::params::Param;
 use base64::{engine::general_purpose, Engine as _};
 use quick_xml::de::from_str;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::fs;
 use std::path::Path;
 
@@ -76,7 +76,7 @@ impl XmlExample {
             value
         } else {
             return Err(RecogError::invalid_fingerprint_data(
-                "Example must have either value or filename attribute"
+                "Example must have either value or filename attribute",
             ));
         };
 

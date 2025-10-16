@@ -4,13 +4,10 @@
 //! error handling, and performance validation.
 
 use crate::{
-    error::{RecogError, RecogResult},
-    fingerprint::{Example, Fingerprint, FingerprintDatabase},
-    loader::{load_fingerprints_from_xml, load_fingerprints_from_file},
-    matcher::{Matcher, MatchResult},
+    fingerprint::{Fingerprint, FingerprintDatabase},
+    matcher::{MatchResult, Matcher},
     params::{Param, ParamInterpolator},
 };
-use std::collections::HashMap;
 
 #[cfg(test)]
 mod comprehensive_tests {
@@ -58,7 +55,10 @@ mod comprehensive_tests {
 
         assert_eq!(results.len(), 1);
         let result = &results[0];
-        assert_eq!(result.params.get("service.product"), Some(&"Apache/2.4.41".to_string()));
+        assert_eq!(
+            result.params.get("service.product"),
+            Some(&"Apache/2.4.41".to_string())
+        );
     }
 
     /// Test complex parameter interpolation scenarios
@@ -124,7 +124,10 @@ mod comprehensive_tests {
         let results = matcher.match_text("test data");
         assert_eq!(results.len(), 1);
         let result = &results[0];
-        assert_eq!(result.params.get("test.param"), Some(&"test data".to_string()));
+        assert_eq!(
+            result.params.get("test.param"),
+            Some(&"test data".to_string())
+        );
     }
 
     /// Test external file examples
@@ -137,7 +140,8 @@ mod comprehensive_tests {
         let example_file = temp_dir.path().join("example.txt");
         fs::write(&example_file, "External example content").unwrap();
 
-        let xml = format!(r#"
+        let xml = format!(
+            r#"
             <fingerprints>
                 <fingerprint pattern="^External example content$">
                     <description>External file test</description>
@@ -147,7 +151,9 @@ mod comprehensive_tests {
                     <param pos="0" name="test.param"/>
                 </fingerprint>
             </fingerprints>
-        "#, example_file.to_string_lossy());
+        "#,
+            example_file.to_string_lossy()
+        );
 
         let db = load_fingerprints_from_xml(&xml).unwrap();
         let matcher = Matcher::new(db);
@@ -155,7 +161,10 @@ mod comprehensive_tests {
         let results = matcher.match_text("External example content");
         assert_eq!(results.len(), 1);
         let result = &results[0];
-        assert_eq!(result.params.get("test.param"), Some(&"External example content".to_string()));
+        assert_eq!(
+            result.params.get("test.param"),
+            Some(&"External example content".to_string())
+        );
     }
 
     /// Test fingerprint database with many patterns (performance test)
@@ -165,13 +174,16 @@ mod comprehensive_tests {
 
         // Create 1000 fingerprints
         for i in 0..1000 {
-            xml.push_str(&format!(r#"
+            xml.push_str(&format!(
+                r#"
                 <fingerprint pattern="^Pattern{}: (.+)$">
                     <description>Pattern {}</description>
                     <example>Pattern{}: value{}</example>
                     <param pos="1" name="value"/>
                 </fingerprint>
-            "#, i, i, i, i));
+            "#,
+                i, i, i, i
+            ));
         }
         xml.push_str("</fingerprints>");
 
@@ -188,7 +200,10 @@ mod comprehensive_tests {
         // Should complete quickly (less than 100ms for 1000 patterns)
         assert!(duration.as_millis() < 100);
         assert_eq!(results.len(), 1);
-        assert_eq!(results[0].params.get("value"), Some(&"value500".to_string()));
+        assert_eq!(
+            results[0].params.get("value"),
+            Some(&"value500".to_string())
+        );
     }
 
     /// Test parameter validation and edge cases
@@ -256,13 +271,16 @@ mod comprehensive_tests {
         // Create a moderately large database
         let mut xml = String::from("<fingerprints>");
         for i in 0..100 {
-            xml.push_str(&format!(r#"
+            xml.push_str(&format!(
+                r#"
                 <fingerprint pattern="^Test{} (.+)$">
                     <description>Test pattern {}</description>
                     <example>Test{} value{}</example>
                     <param pos="1" name="value"/>
                 </fingerprint>
-            "#, i, i, i, i));
+            "#,
+                i, i, i, i
+            ));
         }
         xml.push_str("</fingerprints>");
 

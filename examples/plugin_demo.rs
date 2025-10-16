@@ -4,16 +4,17 @@
 //! and async I/O capabilities in the Rust Recog implementation.
 
 use recog::{
-    async_loader::{load_fingerprints_from_file_async, load_multiple_databases_async, StreamingXmlLoader},
+    async_loader::{
+        load_fingerprints_from_file_async, load_multiple_databases_async, StreamingXmlLoader,
+    },
     error::RecogResult,
     fingerprint::{Example, FingerprintDatabase},
     loader::load_fingerprints_from_xml,
-    plugin::{
-        FuzzyPatternMatcher, PatternMatcher, PatternMatcherRegistry,
-        PluginFingerprint, RegexPatternMatcher, StringPatternMatcher,
-        PatternMatchResult,
-    },
     params::Param,
+    plugin::{
+        FuzzyPatternMatcher, PatternMatchResult, PatternMatcher, PatternMatcherRegistry,
+        PluginFingerprint, RegexPatternMatcher, StringPatternMatcher,
+    },
 };
 use std::collections::HashMap;
 
@@ -46,20 +47,20 @@ fn demonstrate_plugin_architecture() -> RecogResult<()> {
     // Register different types of matchers
     let regex_matcher = Box::new(RegexPatternMatcher::new(
         r"^Apache/(\d+\.\d+)",
-        "Apache Server Regex Matcher"
+        "Apache Server Regex Matcher",
     )?);
     registry.register("apache_regex".to_string(), regex_matcher);
 
     let string_matcher = Box::new(StringPatternMatcher::new(
         "nginx".to_string(),
-        "Nginx Exact String Matcher"
+        "Nginx Exact String Matcher",
     ));
     registry.register("nginx_exact".to_string(), string_matcher);
 
     let fuzzy_matcher = Box::new(FuzzyPatternMatcher::new(
         "apache".to_string(),
         "Apache Fuzzy Matcher (80% threshold)",
-        0.8
+        0.8,
     ));
     registry.register("apache_fuzzy".to_string(), fuzzy_matcher);
 
@@ -73,7 +74,7 @@ fn demonstrate_plugin_architecture() -> RecogResult<()> {
     let test_strings = vec![
         "Apache/2.4.41",
         "nginx/1.20.0",
-        "apach",  // Fuzzy match test
+        "apach", // Fuzzy match test
         "Microsoft-IIS/10.0",
     ];
 
@@ -119,9 +120,11 @@ fn demonstrate_plugin_architecture() -> RecogResult<()> {
 
     // Validate examples
     let validation_results = plugin_fp.validate_examples()?;
-    println!("  📊 Example validation: {}/{} passed",
-             validation_results.iter().filter(|&&x| x).count(),
-             validation_results.len());
+    println!(
+        "  📊 Example validation: {}/{} passed",
+        validation_results.iter().filter(|&&x| x).count(),
+        validation_results.len()
+    );
 
     Ok(())
 }
@@ -159,8 +162,14 @@ async fn demonstrate_async_io() -> RecogResult<()> {
 
     let (db1, db2) = tokio::try_join!(db1_future, db2_future)?;
 
-    println!("✅ Loaded {} fingerprints from database 1", db1.fingerprints.len());
-    println!("✅ Loaded {} fingerprints from database 2", db2.fingerprints.len());
+    println!(
+        "✅ Loaded {} fingerprints from database 1",
+        db1.fingerprints.len()
+    );
+    println!(
+        "✅ Loaded {} fingerprints from database 2",
+        db2.fingerprints.len()
+    );
 
     // Demonstrate concurrent loading
     let xml_files = vec![xml_content1, xml_content2];
@@ -168,7 +177,11 @@ async fn demonstrate_async_io() -> RecogResult<()> {
 
     println!("🚀 Concurrently loaded {} databases", databases.len());
     for (i, db) in databases.iter().enumerate() {
-        println!("  Database {}: {} fingerprints", i + 1, db.fingerprints.len());
+        println!(
+            "  Database {}: {} fingerprints",
+            i + 1,
+            db.fingerprints.len()
+        );
     }
 
     Ok(())
@@ -180,17 +193,21 @@ async fn demonstrate_streaming_parser() -> RecogResult<()> {
     println!("-------------------------");
 
     // Create a moderately large XML for demonstration
-    let mut xml_content = String::from(r#"<fingerprints matches="test" protocol="test" database_type="service">"#);
+    let mut xml_content =
+        String::from(r#"<fingerprints matches="test" protocol="test" database_type="service">"#);
 
     // Add 100 test fingerprints
     for i in 0..100 {
-        xml_content.push_str(&format!(r#"
+        xml_content.push_str(&format!(
+            r#"
             <fingerprint pattern="^Pattern{}: (.+)$">
                 <description>Pattern {}</description>
                 <example>Pattern{}: value{}</example>
                 <param pos="1" name="value"/>
             </fingerprint>
-        "#, i, i, i, i));
+        "#,
+            i, i, i, i
+        ));
     }
     xml_content.push_str("</fingerprints>");
 
@@ -205,10 +222,16 @@ async fn demonstrate_streaming_parser() -> RecogResult<()> {
     // For demo purposes, we'll use the string directly
     let db = load_fingerprints_from_xml(&xml_content)?;
 
-    println!("✅ Processed XML into database with {} fingerprints", db.fingerprints.len());
+    println!(
+        "✅ Processed XML into database with {} fingerprints",
+        db.fingerprints.len()
+    );
 
     // Demonstrate memory efficiency
-    println!("💾 Memory usage: tracking {} fingerprint objects", db.fingerprints.len());
+    println!(
+        "💾 Memory usage: tracking {} fingerprint objects",
+        db.fingerprints.len()
+    );
 
     Ok(())
 }
@@ -264,7 +287,10 @@ mod tests {
         // Test matching
         let result1 = matcher.matches(r#""service.vendor":"Apache""#).unwrap();
         assert!(result1.matched);
-        assert_eq!(result1.params.get("key"), Some(&"service.vendor".to_string()));
+        assert_eq!(
+            result1.params.get("key"),
+            Some(&"service.vendor".to_string())
+        );
         assert_eq!(result1.params.get("value"), Some(&"Apache".to_string()));
 
         // Test non-matching

@@ -66,9 +66,7 @@ impl ParamInterpolator {
 
     /// Filter out temporary parameters from results
     pub fn filter_temp_params(&self, params: &mut HashMap<String, String>) {
-        params.retain(|name, _| {
-            !self.temp_params.contains(name) && !name.starts_with("_tmp.")
-        });
+        params.retain(|name, _| !self.temp_params.contains(name) && !name.starts_with("_tmp."));
     }
 
     /// Process CPE (Common Platform Enumeration) parameters

@@ -1,4 +1,4 @@
-use crate::error::{RecogError, RecogResult};
+use crate::error::RecogResult;
 use crate::fingerprint::{Fingerprint, FingerprintDatabase};
 use crate::params::ParamInterpolator;
 use base64::{engine::general_purpose, Engine as _};
@@ -28,7 +28,10 @@ impl MatchResult {
     /// Convert to JSON for output
     pub fn to_json(&self) -> RecogResult<String> {
         let mut result = serde_json::Map::new();
-        result.insert("description".to_string(), serde_json::Value::String(self.fingerprint.description.clone()));
+        result.insert(
+            "description".to_string(),
+            serde_json::Value::String(self.fingerprint.description.clone()),
+        );
         result.insert("params".to_string(), serde_json::to_value(&self.params)?);
 
         Ok(serde_json::to_string_pretty(&result)?)

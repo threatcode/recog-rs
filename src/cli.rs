@@ -1,5 +1,8 @@
+use crate::{
+    error::{RecogError, RecogResult},
+    load_fingerprints_from_file, Matcher,
+};
 use clap::{Parser, Subcommand};
-use crate::{error::{RecogError, RecogResult}, load_fingerprints_from_file, Matcher};
 use std::io::{self, Read};
 use std::path::PathBuf;
 
@@ -54,16 +57,26 @@ pub fn run() -> RecogResult<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Match { input, db, format, base64 } => {
-            run_match(input, db, format, base64)
-        }
-        Commands::Verify { db, format, verbose } => {
-            run_verify(db, format, verbose)
-        }
+        Commands::Match {
+            input,
+            db,
+            format,
+            base64,
+        } => run_match(input, db, format, base64),
+        Commands::Verify {
+            db,
+            format,
+            verbose,
+        } => run_verify(db, format, verbose),
     }
 }
 
-fn run_match(input: Option<PathBuf>, db_path: PathBuf, format: String, base64: bool) -> RecogResult<()> {
+fn run_match(
+    input: Option<PathBuf>,
+    db_path: PathBuf,
+    format: String,
+    base64: bool,
+) -> RecogResult<()> {
     // Load fingerprint database
     let db = load_fingerprints_from_file(&db_path)?;
 
@@ -78,7 +91,8 @@ fn run_match(input: Option<PathBuf>, db_path: PathBuf, format: String, base64: b
     };
 
     let text = if base64 {
-        let decoded = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &input_text)?;
+        let decoded =
+            base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &input_text)?;
         String::from_utf8(decoded)?
     } else {
         input_text
@@ -125,7 +139,10 @@ fn run_verify(db_path: PathBuf, format: String, verbose: bool) -> RecogResult<()
             total_examples += 1;
 
             let text = if example.is_base64 {
-                let decoded = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &example.value)?;
+                let decoded = base64::Engine::decode(
+                    &base64::engine::general_purpose::STANDARD,
+                    &example.value,
+                )?;
                 String::from_utf8(decoded)?
             } else {
                 example.value.clone()
@@ -134,7 +151,9 @@ fn run_verify(db_path: PathBuf, format: String, verbose: bool) -> RecogResult<()
             let matcher = Matcher::new(db.clone());
             let results = matcher.match_text(&text);
 
-            let matched = results.iter().any(|r| r.fingerprint.description == fingerprint.description);
+            let matched = results
+                .iter()
+                .any(|r| r.fingerprint.description == fingerprint.description);
 
             if matched {
                 matched_examples += 1;
@@ -153,11 +172,25 @@ fn run_verify(db_path: PathBuf, format: String, verbose: bool) -> RecogResult<()
     match format.as_str() {
         "json" => {
             let mut result = serde_json::Map::new();
-            result.insert("total_examples".to_string(), serde_json::Value::Number(total_examples.into()));
-            result.insert("matched_examples".to_string(), serde_json::Value::Number(matched_examples.into()));
-            result.insert("success_rate".to_string(), serde_json::Value::Number(serde_json::Number::from_f64(
-                if total_examples > 0 { matched_examples as f64 / total_examples as f64 } else { 0.0 }
-            ).unwrap_or(serde_json::Number::from(0))));
+            result.insert(
+                "total_examples".to_string(),
+                serde_json::Value::Number(total_examples.into()),
+            );
+            result.insert(
+                "matched_examples".to_string(),
+                serde_json::Value::Number(matched_examples.into()),
+            );
+            result.insert(
+                "success_rate".to_string(),
+                serde_json::Value::Number(
+                    serde_json::Number::from_f64(if total_examples > 0 {
+                        matched_examples as f64 / total_examples as f64
+                    } else {
+                        0.0
+                    })
+                    .unwrap_or(serde_json::Number::from(0)),
+                ),
+            );
 
             println!("{}", serde_json::to_string_pretty(&result)?);
         }
@@ -166,7 +199,10 @@ fn run_verify(db_path: PathBuf, format: String, verbose: bool) -> RecogResult<()
             println!("  Total examples: {}", total_examples);
             println!("  Matched examples: {}", matched_examples);
             if total_examples > 0 {
-                println!("  Success rate: {:.2}%", (matched_examples as f64 / total_examples as f64) * 100.0);
+                println!(
+                    "  Success rate: {:.2}%",
+                    (matched_examples as f64 / total_examples as f64) * 100.0
+                );
             }
         }
         _ => {

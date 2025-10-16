@@ -42,13 +42,16 @@ fn create_large_database() -> FingerprintDatabase {
 
     // Create 1000 fingerprints for comprehensive testing
     for i in 0..1000 {
-        xml.push_str(&format!(r#"
+        xml.push_str(&format!(
+            r#"
             <fingerprint pattern="^Pattern{}: (.+)$">
                 <description>Pattern {}</description>
                 <example>Pattern{}: value{}</example>
                 <param pos="1" name="value"/>
             </fingerprint>
-        "#, i, i, i, i));
+        "#,
+            i, i, i, i
+        ));
     }
     xml.push_str("</fingerprints>");
 
@@ -84,13 +87,16 @@ fn benchmark_xml_loading_small(c: &mut Criterion) {
 fn benchmark_xml_loading_large(c: &mut Criterion) {
     let mut xml = String::from("<fingerprints>");
     for i in 0..500 {
-        xml.push_str(&format!(r#"
+        xml.push_str(&format!(
+            r#"
             <fingerprint pattern="^Pattern{}: (.+)$">
                 <description>Pattern {}</description>
                 <example>Pattern{}: value{}</example>
                 <param pos="1" name="value"/>
             </fingerprint>
-        "#, i, i, i, i));
+        "#,
+            i, i, i, i
+        ));
     }
     xml.push_str("</fingerprints>");
 
