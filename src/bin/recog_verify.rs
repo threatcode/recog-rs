@@ -1,3 +1,4 @@
+use base64::{engine::general_purpose, Engine as _};
 use clap::Parser;
 use recog::{load_fingerprints_from_file, Matcher};
 use std::path::PathBuf;
@@ -34,7 +35,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             total_examples += 1;
 
             let text = if example.is_base64 {
-                let decoded = base64::decode(&example.value)?;
+                let decoded = general_purpose::STANDARD.decode(&example.value)?;
                 String::from_utf8(decoded)?
             } else {
                 example.value.clone()

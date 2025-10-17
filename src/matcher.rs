@@ -125,8 +125,7 @@ mod tests {
     fn test_basic_matching() {
         let xml = r#"
             <fingerprints>
-                <fingerprint pattern="Apache/(\d+\.\d+)">
-                    <description>Apache HTTP Server</description>
+                <fingerprint pattern="Apache/(\d+\.\d+)" description="Apache HTTP Server">
                     <param pos="1" name="version"/>
                 </fingerprint>
             </fingerprints>
@@ -147,8 +146,7 @@ mod tests {
     fn test_no_match() {
         let xml = r#"
             <fingerprints>
-                <fingerprint pattern="Apache/(\d+\.\d+)">
-                    <description>Apache HTTP Server</description>
+                <fingerprint pattern="Apache/(\d+\.\d+)" description="Apache HTTP Server">
                     <param pos="1" name="version"/>
                 </fingerprint>
             </fingerprints>
@@ -165,8 +163,7 @@ mod tests {
     fn test_base64_matching() {
         let xml = r#"
             <fingerprints>
-                <fingerprint pattern="test">
-                    <description>Test pattern</description>
+                <fingerprint pattern="test" description="Test pattern">
                 </fingerprint>
             </fingerprints>
         "#;

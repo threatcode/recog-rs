@@ -61,6 +61,10 @@ impl ParamInterpolator {
             result = result.replace(&pattern, param_value);
         }
 
+        // Remove any remaining {param_name} patterns
+        let re = regex::Regex::new(r"\{[^}]+\}").unwrap();
+        result = re.replace_all(&result, "").to_string();
+
         result
     }
 
@@ -107,7 +111,7 @@ mod tests {
 
     #[test]
     fn test_interpolation() {
-        let mut interpolator = ParamInterpolator::new();
+        let interpolator = ParamInterpolator::new();
         let mut params = HashMap::new();
         params.insert("version".to_string(), "2.4.41".to_string());
         params.insert("product".to_string(), "Apache".to_string());
@@ -131,6 +135,6 @@ mod tests {
 
         assert_eq!(params.len(), 1);
         assert_eq!(params.get("product"), Some(&"Apache".to_string()));
-        assert!(params.get("_tmp.os").is_none());
+        assert!(!params.contains_key("_tmp.os"));
     }
 }

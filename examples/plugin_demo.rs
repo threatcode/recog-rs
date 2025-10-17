@@ -4,15 +4,12 @@
 //! and async I/O capabilities in the Rust Recog implementation.
 
 use recog::{
-    async_loader::{
-        load_fingerprints_from_file_async, load_multiple_databases_async, StreamingXmlLoader,
-    },
+    async_loader::{load_multiple_databases_async, StreamingXmlLoader},
     error::RecogResult,
-    fingerprint::{Example, FingerprintDatabase},
     loader::load_fingerprints_from_xml,
     params::Param,
     plugin::{
-        FuzzyPatternMatcher, PatternMatchResult, PatternMatcher, PatternMatcherRegistry,
+        Example, FuzzyPatternMatcher, PatternMatchResult, PatternMatcher, PatternMatcherRegistry,
         PluginFingerprint, RegexPatternMatcher, StringPatternMatcher,
     },
 };
@@ -157,8 +154,8 @@ async fn demonstrate_async_io() -> RecogResult<()> {
 
     // Load databases asynchronously
     println!("⏳ Loading databases asynchronously...");
-    let db1_future = load_fingerprints_from_xml_async(xml_content1);
-    let db2_future = load_fingerprints_from_xml_async(xml_content2);
+    let db1_future = crate::async_loader::load_fingerprints_from_xml_async(xml_content1);
+    let db2_future = crate::async_loader::load_fingerprints_from_xml_async(xml_content2);
 
     let (db1, db2) = tokio::try_join!(db1_future, db2_future)?;
 
@@ -214,7 +211,7 @@ async fn demonstrate_streaming_parser() -> RecogResult<()> {
     println!("📄 Created test XML with {} characters", xml_content.len());
 
     // Use streaming parser with small buffer size to demonstrate chunked processing
-    let loader = StreamingXmlLoader::new(1024); // 1KB buffer
+    let _loader = StreamingXmlLoader::new(1024); // 1KB buffer
 
     println!("🔄 Processing XML in 1KB chunks...");
 
@@ -237,6 +234,7 @@ async fn demonstrate_streaming_parser() -> RecogResult<()> {
 }
 
 /// Custom pattern matcher example - JSON-like key-value parser
+#[derive(Debug)]
 struct JsonLikeMatcher {
     expected_key: String,
 }

@@ -3,7 +3,7 @@
 //! This module provides async versions of the core I/O operations for better
 //! performance with large fingerprint databases and concurrent processing.
 
-#![cfg(feature = "async")]
+
 
 use crate::error::{RecogError, RecogResult};
 use crate::fingerprint::{Example, Fingerprint, FingerprintDatabase};
@@ -29,7 +29,7 @@ pub async fn load_fingerprints_from_xml_async(
     // For now, we use the synchronous parser since we don't have async XML parsing
     // In a production system, we might want to use a streaming XML parser
     let xml_content = xml_content.to_string();
-    let db = task::spawn_blocking(move || {
+    let db: RecogResult<FingerprintDatabase> = task::spawn_blocking(move || {
         let xml_fps: XmlFingerprints = quick_xml::de::from_str(&xml_content)
             .map_err(|e| RecogError::custom(format!("XML parsing error: {}", e)))?;
         let mut db = FingerprintDatabase::new();
@@ -44,7 +44,7 @@ pub async fn load_fingerprints_from_xml_async(
     .await
     .map_err(|e| RecogError::custom(format!("Task join error: {}", e)))?;
 
-    Ok(db)
+    db
 }
 
 /// Async version of saving fingerprints to XML
@@ -202,7 +202,7 @@ struct XmlParam {
 
 impl XmlExample {
     fn into_example(self) -> Result<Example, RecogError> {
-        let is_base64 = self.encoding.as_ref().map(|s| s.as_str()) == Some("base64");
+        let is_base64 = self.encoding.as_deref() == Some("base64");
 
         // Load content from file if filename is specified, otherwise use value
         let content = if let Some(filename) = self.filename {
@@ -212,7 +212,7 @@ impl XmlExample {
             if is_base64 {
                 // If base64 encoding is specified for external file,
                 // decode it first, then we'll re-encode it for storage
-                let decoded = general_purpose::STANDARD.decode(&content.trim())?;
+                let decoded = general_purpose::STANDARD.decode(content.trim())?;
                 general_purpose::STANDARD.encode(&decoded)
             } else {
                 content.trim().to_string()
@@ -357,6 +357,6 @@ mod tests {
 
         // Note: Current implementation is simplified and may not parse correctly
         // In a full implementation, this would properly parse the streaming XML
-        assert!(db.fingerprints.len() >= 0);
+        assert!(!db.fingerprints.is_empty());
     }
 }

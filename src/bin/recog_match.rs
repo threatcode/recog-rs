@@ -1,6 +1,7 @@
+use base64::{engine::general_purpose, Engine as _};
 use clap::Parser;
 use recog::{load_fingerprints_from_file, Matcher};
-use std::io::{self, BufRead};
+use std::io::{self};
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -48,7 +49,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let text = if args.base64 {
-        let decoded = base64::decode(&input_text)?;
+        let decoded = general_purpose::STANDARD.decode(&input_text)?;
         String::from_utf8(decoded)?
     } else {
         input_text

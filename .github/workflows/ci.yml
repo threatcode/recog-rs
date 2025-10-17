@@ -87,7 +87,7 @@ jobs:
     - name: Run fingerprint matching benchmarks
       run: cargo bench --bench fingerprint_matching -- --output-format bencher | tee benchmark-results.txt
 
-    - name: Run XML loading benchmarks
+    - name: Run XML loading benchmarksG
       run: cargo bench --bench xml_loading -- --output-format bencher | tee -a benchmark-results.txt
 
     - name: Upload benchmark results

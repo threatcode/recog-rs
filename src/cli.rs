@@ -1,7 +1,4 @@
-use crate::{
-    error::{RecogError, RecogResult},
-    load_fingerprints_from_file, Matcher,
-};
+use crate::{error::RecogResult, load_fingerprints_from_file, Matcher};
 use clap::{Parser, Subcommand};
 use std::io::{self, Read};
 use std::path::PathBuf;

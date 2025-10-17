@@ -1,14 +1,17 @@
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, DisplayFromStr};
 use std::collections::HashMap;
 
 /// Core data structures for Recog fingerprints
 use crate::{error::RecogResult, params::Param};
 
 /// A fingerprint pattern for matching against network banners
-#[derive(Debug, Clone)]
+#[serde_as]
+#[derive(Debug, Clone, Deserialize)]
 pub struct Fingerprint {
     /// Regex pattern for matching
+    #[serde_as(as = "DisplayFromStr")]
     pub pattern: Regex,
     /// Human-readable description of what this fingerprint identifies
     pub description: String,
@@ -95,7 +98,7 @@ impl Example {
 }
 
 /// Collection of fingerprints loaded from XML
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct FingerprintDatabase {
     /// All loaded fingerprints
     pub fingerprints: Vec<Fingerprint>,

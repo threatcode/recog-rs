@@ -59,7 +59,7 @@ struct XmlParam {
 
 impl XmlExample {
     fn into_example(self) -> Result<Example, RecogError> {
-        let is_base64 = self.encoding.as_ref().map(|s| s.as_str()) == Some("base64");
+        let is_base64 = self.encoding.as_deref() == Some("base64");
 
         // Load content from file if filename is specified, otherwise use value
         let content = if let Some(filename) = self.filename {
@@ -67,7 +67,7 @@ impl XmlExample {
             if is_base64 {
                 // If base64 encoding is specified for external file,
                 // decode it first, then we'll re-encode it for storage
-                let decoded = general_purpose::STANDARD.decode(&content.trim())?;
+                let decoded = general_purpose::STANDARD.decode(content.trim())?;
                 general_purpose::STANDARD.encode(&decoded)
             } else {
                 content.trim().to_string()
@@ -124,6 +124,11 @@ impl XmlFingerprint {
 /// Load fingerprints from XML content
 pub fn load_fingerprints_from_xml(xml_content: &str) -> RecogResult<FingerprintDatabase> {
     let xml_fps: XmlFingerprints = from_str(xml_content)?;
+    if xml_fps.fingerprints.is_empty() {
+        return Err(RecogError::invalid_fingerprint_data(
+            "No fingerprints found in XML",
+        ));
+    }
     let mut db = FingerprintDatabase::new();
 
     for xml_fp in xml_fps.fingerprints {
@@ -155,8 +160,7 @@ mod tests {
     fn test_load_simple_fingerprint() {
         let xml = r#"
             <fingerprints>
-                <fingerprint pattern="Apache/(\d+\.\d+)">
-                    <description>Apache HTTP Server</description>
+                <fingerprint pattern="Apache/(\d+\.\d+)" description="Apache HTTP Server">
                     <example value="Apache/2.4.41">
                         <param name="hw.product" value="Apache"/>
                         <param name="hw.version" value="2.4.41"/>
@@ -180,8 +184,7 @@ mod tests {
     fn test_filename_example() {
         let xml = r#"
             <fingerprints>
-                <fingerprint pattern="test">
-                    <description>Test pattern</description>
+                <fingerprint pattern="test" description="Test pattern">
                     <example filename="examples/apache_banner.txt">
                         <param name="test" value="test data"/>
                     </example>

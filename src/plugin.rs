@@ -115,10 +115,10 @@ pub struct StringPatternMatcher {
 
 impl StringPatternMatcher {
     /// Create a new string pattern matcher
-    pub fn new(pattern: String, description: String) -> Self {
+    pub fn new(pattern: String, description: &str) -> Self {
         Self {
             pattern,
-            description,
+            description: description.to_string(),
         }
     }
 }
@@ -156,10 +156,10 @@ pub struct FuzzyPatternMatcher {
 
 impl FuzzyPatternMatcher {
     /// Create a new fuzzy pattern matcher
-    pub fn new(pattern: String, description: String, threshold: f32) -> Self {
+    pub fn new(pattern: String, description: &str, threshold: f32) -> Self {
         Self {
             pattern,
-            description,
+            description: description.to_string(),
             threshold: threshold.clamp(0.0, 1.0),
         }
     }
@@ -220,8 +220,8 @@ fn levenshtein_distance(s1: &str, s2: &str) -> usize {
     let mut matrix = vec![vec![0; len2 + 1]; len1 + 1];
 
     // Initialize first row and column
-    for i in 0..=len1 {
-        matrix[i][0] = i;
+    for (i, row) in matrix.iter_mut().enumerate().take(len1 + 1) {
+        row[0] = i;
     }
     for j in 0..=len2 {
         matrix[0][j] = j;
@@ -468,11 +468,9 @@ mod tests {
 
     #[test]
     fn test_plugin_fingerprint() {
-        let mut examples = Vec::new();
-        examples.push(Example::new("Apache/2.4.41".to_string()));
+        let examples = vec![Example::new("Apache/2.4.41".to_string())];
 
-        let mut params = Vec::new();
-        params.push(crate::params::Param::new(1, "version".to_string()));
+        let params = vec![crate::params::Param::new(1, "version".to_string())];
 
         let fingerprint = PluginFingerprint::with_regex(
             "apache_server".to_string(),
