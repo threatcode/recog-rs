@@ -4,7 +4,7 @@
 //! error handling, and performance validation.
 
 #[cfg(test)]
-
+mod tests {
     use super::*;
     use crate::{
         error::RecogError,

@@ -75,14 +75,74 @@ impl ParamInterpolator {
 
     /// Process CPE (Common Platform Enumeration) parameters
     pub fn process_cpe_params(&self, params: &mut HashMap<String, String>) {
-        // Handle CPE-specific parameter processing
-        // This would implement CPE field mapping and formatting
-
-        // Filter out temporary parameters that shouldn't appear in CPE
+        // Filter out temporary parameters first
         self.filter_temp_params(params);
 
-        // Add CPE-specific transformations here if needed
-        // For example, mapping hw.product to cpe.vendor, etc.
+        // Map service/os/hw parameters to CPE components
+        let vendor = params.get("cpe.vendor")
+            .or_else(|| params.get("service.vendor"))
+            .or_else(|| params.get("os.vendor"))
+            .or_else(|| params.get("hw.vendor"))
+            .cloned();
+
+        let product = params.get("cpe.product")
+            .or_else(|| params.get("service.product"))
+            .or_else(|| params.get("os.product"))
+            .or_else(|| params.get("hw.product"))
+            .cloned();
+
+        let version = params.get("cpe.version")
+            .or_else(|| params.get("service.version"))
+            .or_else(|| params.get("os.version"))
+            .or_else(|| params.get("hw.version"))
+            .cloned();
+
+        let update = params.get("cpe.update")
+            .or_else(|| params.get("service.update"))
+            .or_else(|| params.get("os.update"))
+            .or_else(|| params.get("hw.update"))
+            .cloned()
+            .unwrap_or_else(|| "*".to_string());
+
+        if let (Some(v), Some(p)) = (vendor, product) {
+            let part = if params.contains_key("os.vendor") { "o" }
+                      else if params.contains_key("hw.vendor") { "h" }
+                      else { "a" };
+
+            let ver = version.unwrap_or_else(|| "*".to_string());
+            
+            // Format: cpe:2.3:part:vendor:product:version:update:edition:language:sw_edition:target_sw:target_hw:other
+            let cpe = format!(
+                "cpe:2.3:{}:{}:{}:{}:{}:*:*:*:*:*:*",
+                part,
+                self.escape_cpe_field(&v),
+                self.escape_cpe_field(&p),
+                self.escape_cpe_field(&ver),
+                self.escape_cpe_field(&update)
+            );
+            params.insert("cpe23".to_string(), cpe);
+        }
+    }
+
+    /// Escape characters for CPE 2.3 as per specification
+    fn escape_cpe_field(&self, field: &str) -> String {
+        if field == "*" {
+            return "*".to_string();
+        }
+        let mut escaped = String::with_capacity(field.len());
+        for c in field.chars() {
+            if c.is_alphanumeric() || c == '_' || c == '~' {
+                escaped.push(c);
+            } else if c == ' ' || c == '-' || c == '.' {
+                // These are allowed in some contexts but often replaced or escaped
+                escaped.push(c);
+            } else {
+                escaped.push('\\');
+                escaped.push(c);
+            }
+        }
+        // Replace spaces with underscores which is common in CPEs
+        escaped.replace(' ', "_")
     }
 }
 
@@ -136,5 +196,56 @@ mod tests {
         assert_eq!(params.len(), 1);
         assert_eq!(params.get("product"), Some(&"Apache".to_string()));
         assert!(!params.contains_key("_tmp.os"));
+    }
+
+    #[test]
+    fn test_cpe_generation_service() {
+        let interpolator = ParamInterpolator::new();
+        let mut params = HashMap::new();
+        params.insert("service.vendor".to_string(), "Apache".to_string());
+        params.insert("service.product".to_string(), "HTTP Server".to_string());
+        params.insert("service.version".to_string(), "2.4.41".to_string());
+
+        interpolator.process_cpe_params(&mut params);
+
+        assert_eq!(
+            params.get("cpe23"),
+            Some(&"cpe:2.3:a:Apache:HTTP_Server:2.4.41:*:*:*:*:*:*:*".to_string())
+        );
+    }
+
+    #[test]
+    fn test_cpe_generation_os() {
+        let interpolator = ParamInterpolator::new();
+        let mut params = HashMap::new();
+        params.insert("os.vendor".to_string(), "Microsoft".to_string());
+        params.insert("os.product".to_string(), "Windows".to_string());
+        params.insert("os.version".to_string(), "10".to_string());
+        params.insert("os.update".to_string(), "20H2".to_string());
+
+        interpolator.process_cpe_params(&mut params);
+
+        assert_eq!(
+            params.get("cpe23"),
+            Some(&"cpe:2.3:o:Microsoft:Windows:10:20H2:*:*:*:*:*:*".to_string())
+        );
+    }
+
+    #[test]
+    fn test_cpe_escaping() {
+        let interpolator = ParamInterpolator::new();
+        let mut params = HashMap::new();
+        params.insert("service.vendor".to_string(), "Vendor With Space".to_string());
+        params.insert("service.product".to_string(), "Product(Special)".to_string());
+        params.insert("service.version".to_string(), "1.0".to_string());
+
+        interpolator.process_cpe_params(&mut params);
+
+        // Space becomes underscore
+        // Parentheses should be escaped
+        assert_eq!(
+            params.get("cpe23"),
+            Some(&"cpe:2.3:a:Vendor_With_Space:Product\\(Special\\):1.0:*:*:*:*:*:*:*".to_string())
+        );
     }
 }

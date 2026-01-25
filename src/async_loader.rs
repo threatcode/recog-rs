@@ -11,7 +11,7 @@ use crate::params::Param;
 use base64::{engine::general_purpose, Engine as _};
 use serde::Deserialize;
 use std::path::Path;
-use tokio::{fs, io::AsyncReadExt, task};
+use tokio::{fs, task};
 
 /// Async version of XML loading from file
 pub async fn load_fingerprints_from_file_async<P: AsRef<Path>>(
@@ -95,52 +95,81 @@ impl StreamingXmlLoader {
         &self,
         path: P,
     ) -> RecogResult<FingerprintDatabase> {
-        let path = path.as_ref();
-        let mut file = fs::File::open(path).await?;
-        let mut buffer = Vec::new();
-        let mut db = FingerprintDatabase::new();
+        let path = path.as_ref().to_path_buf();
+        
+        let buffer_size = self.buffer_size;
+        let db = task::spawn_blocking(move || {
+            let file = std::fs::File::open(&path)
+                .map_err(|e| RecogError::Io(e))?;
+            let reader = std::io::BufReader::with_capacity(buffer_size, file);
+            let mut xml_reader = quick_xml::Reader::from_reader(reader);
+            xml_reader.config_mut().trim_text(true);
 
-        // Read file in chunks
-        loop {
-            let mut chunk = vec![0; self.buffer_size];
-            let bytes_read = file.read(&mut chunk).await?;
-
-            if bytes_read == 0 {
-                break; // EOF
-            }
-
-            buffer.extend_from_slice(&chunk[..bytes_read]);
-
-            // Try to parse complete fingerprints from buffer
-            if let Ok((remaining, fingerprints)) = self.parse_buffer(&buffer) {
-                buffer = remaining;
-
-                for fp in fingerprints {
-                    db.add_fingerprint(fp);
+            let mut db = FingerprintDatabase::new();
+            let mut buf = Vec::new();
+            
+            loop {
+                match xml_reader.read_event_into(&mut buf) {
+                    Ok(quick_xml::events::Event::Start(ref e)) if e.name().as_ref() == b"fingerprint" => {
+                        // We found a fingerprint, reconstruct the XML for this element
+                        let mut fp_xml = String::new();
+                        
+                        // Reconstruct start tag
+                        // Note: capturing attributes is tricky if we just have BytesStart.
+                        // We can use String::from_utf8_lossy on the slice? 
+                        // Actually, since we want to deserialize, maybe we can just deserialize directly?
+                        // But quick-xml doesn't support deserializing from current position easily without consuming.
+                        
+                        // Valid strategy: 
+                        // 1. Convert Start event back to text.
+                        // 2. Read content to end.
+                        // 3. Append End tag.
+                        // 4. Deserialize.
+                        
+                        // Constructing start tag from BytesStart
+                        fp_xml.push('<');
+                        fp_xml.push_str(&String::from_utf8_lossy(e.name().as_ref()));
+                        for attr in e.attributes() {
+                            let attr = attr.map_err(|e| RecogError::custom(e.to_string()))?;
+                            fp_xml.push(' ');
+                            fp_xml.push_str(&String::from_utf8_lossy(attr.key.as_ref()));
+                            fp_xml.push_str("=\"");
+                            fp_xml.push_str(&String::from_utf8_lossy(&attr.value)); // Value is Cow<[u8]>
+                            fp_xml.push('"');
+                        }
+                        fp_xml.push('>');
+                        
+                        // Read to end
+                        let mut content_buf = Vec::new();
+                        // read_to_end expects the END tag name.
+                        xml_reader.read_to_end_into(e.name(), &mut content_buf)
+                            .map_err(|e| RecogError::custom(e.to_string()))?;
+                            
+                        fp_xml.push_str(&String::from_utf8_lossy(&content_buf));
+                        
+                        // Append end tag
+                        fp_xml.push_str("</");
+                        fp_xml.push_str(&String::from_utf8_lossy(e.name().as_ref()));
+                        fp_xml.push('>');
+                        
+                        // Deserialize
+                        let xml_fp: XmlFingerprint = quick_xml::de::from_str(&fp_xml)
+                            .map_err(|e| RecogError::custom(format!("Failed to parse fingerprint fragment: {}", e)))?;
+                            
+                        let fingerprint = xml_fp.into_fingerprint()?;
+                        db.add_fingerprint(fingerprint);
+                    }
+                    Ok(quick_xml::events::Event::Eof) => break,
+                    Err(e) => return Err(RecogError::custom(format!("XML Trace Error: {}", e))),
+                    _ => {} // Ignore other events (like <fingerprints> container)
                 }
+                buf.clear();
             }
-        }
+            Ok(db)
+        }).await
+        .map_err(|e| RecogError::custom(format!("Task join error: {}", e)))??;
 
         Ok(db)
-    }
-
-    /// Parse complete fingerprints from buffer, returning unparsed remainder
-    fn parse_buffer(&self, buffer: &[u8]) -> Result<(Vec<u8>, Vec<Fingerprint>), RecogError> {
-        let xml_str = std::str::from_utf8(buffer)
-            .map_err(|_| RecogError::custom("Invalid UTF-8 in XML buffer"))?;
-
-        // This is a simplified parser - in production, we'd use a proper streaming XML parser
-        // For now, we'll assume the buffer contains complete fingerprints
-        let xml_fps: XmlFingerprints = quick_xml::de::from_str(xml_str)?;
-
-        let mut fingerprints = Vec::new();
-        for xml_fp in xml_fps.fingerprints {
-            let fingerprint = xml_fp.into_fingerprint()?;
-            fingerprints.push(fingerprint);
-        }
-
-        // Return empty remainder for now - proper implementation would track parsing state
-        Ok((Vec::new(), fingerprints))
     }
 }
 
@@ -278,9 +307,8 @@ mod tests {
 
         let xml_content = r#"
             <fingerprints>
-                <fingerprint pattern="^Test/(\d+)$">
-                    <description>Test pattern</description>
-                    <example>Test/123</example>
+                <fingerprint pattern="^Test/(\d+)$" description="Test pattern">
+                    <example value="Test/123" />
                     <param pos="1" name="version"/>
                 </fingerprint>
             </fingerprints>
@@ -304,9 +332,8 @@ mod tests {
             let xml_content = format!(
                 r#"
                 <fingerprints>
-                    <fingerprint pattern="^Pattern{}/(.+)$">
-                        <description>Pattern {}</description>
-                        <example>Pattern{}: value{}</example>
+                    <fingerprint pattern="^Pattern{}/(.+)$" description="Pattern {}">
+                        <example value="Pattern{}: value{}" />
                         <param pos="1" name="value"/>
                     </fingerprint>
                 </fingerprints>
@@ -339,9 +366,8 @@ mod tests {
         for i in 0..100 {
             xml_content.push_str(&format!(
                 r#"
-                <fingerprint pattern="^Pattern{}: (.+)$">
-                    <description>Pattern {}</description>
-                    <example>Pattern{}: value{}</example>
+                <fingerprint pattern="^Pattern{}: (.+)$" description="Pattern {}">
+                    <example value="Pattern{}: value{}" />
                     <param pos="1" name="value"/>
                 </fingerprint>
             "#,
@@ -354,9 +380,7 @@ mod tests {
 
         let loader = StreamingXmlLoader::new(1024);
         let db = loader.load_large_file_streaming(&xml_file).await.unwrap();
-
-        // Note: Current implementation is simplified and may not parse correctly
-        // In a full implementation, this would properly parse the streaming XML
-        assert!(!db.fingerprints.is_empty());
+        
+        assert_eq!(db.fingerprints.len(), 100);
     }
 }
