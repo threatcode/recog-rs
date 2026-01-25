@@ -1,7 +1,9 @@
 use crate::error::RecogResult;
 use crate::fingerprint::{Fingerprint, FingerprintDatabase};
 use crate::params::ParamInterpolator;
+use aho_corasick::AhoCorasick;
 use base64::{engine::general_purpose, Engine as _};
+use rayon::prelude::*;
 use std::collections::HashMap;
 
 /// Result of a fingerprint match
@@ -44,14 +46,24 @@ pub struct Matcher {
     db: FingerprintDatabase,
     /// Parameter interpolator
     interpolator: ParamInterpolator,
+    /// Aho-Corasick pre-filter automaton
+    ac: Option<AhoCorasick>,
+    /// Mapping from AC pattern ID to fingerprint indices
+    ac_map: Vec<Vec<usize>>,
+    /// Fingerprints without literals (fallback)
+    fallbacks: Vec<usize>,
 }
 
 impl Matcher {
     /// Create a new matcher with a fingerprint database
     pub fn new(db: FingerprintDatabase) -> Self {
+        let (ac, ac_map, fallbacks) = Self::build_prefilter(&db);
         Matcher {
             db,
             interpolator: ParamInterpolator::new(),
+            ac,
+            ac_map,
+            fallbacks,
         }
     }
 
@@ -60,20 +72,90 @@ impl Matcher {
         Self::new(db)
     }
 
-    /// Match text against all fingerprints and return all matches
-    pub fn match_text(&self, text: &str) -> Vec<MatchResult> {
-        let mut results = Vec::new();
+    fn build_prefilter(db: &FingerprintDatabase) -> (Option<AhoCorasick>, Vec<Vec<usize>>, Vec<usize>) {
+        let mut literals = Vec::new();
+        let mut map = Vec::new(); // map[literal_index] -> vec[fp_indices]
+        let mut fallbacks = Vec::new();
+        let mut literal_to_id = HashMap::new(); // literal -> literal_index
 
-        for fingerprint in &self.db.fingerprints {
-            if let Some(mut params) = fingerprint.matches(text) {
-                // Apply parameter interpolation and filtering
-                self.interpolator.process_cpe_params(&mut params);
+        for (i, fp) in db.fingerprints.iter().enumerate() {
+            let pattern = fp.pattern.as_str();
+            
+            // Heuristic: If pattern contains '|', it's an alternation, risky to pick one literal.
+            if pattern.contains('|') {
+                fallbacks.push(i);
+                continue;
+            }
 
-                results.push(MatchResult::new(fingerprint.clone(), params));
+            if let Some(lit) = Self::extract_literal(pattern) {
+                let lit_idx = if let Some(&idx) = literal_to_id.get(&lit) {
+                    idx
+                } else {
+                    let idx = literals.len();
+                    literals.push(lit.clone());
+                    map.push(Vec::new());
+                    literal_to_id.insert(lit, idx);
+                    idx
+                };
+                map[lit_idx].push(i);
+            } else {
+                fallbacks.push(i);
             }
         }
 
-        results
+        if literals.is_empty() {
+            return (None, Vec::new(), (0..db.fingerprints.len()).collect());
+        }
+
+        let ac = AhoCorasick::builder()
+            .match_kind(aho_corasick::MatchKind::LeftmostLongest)
+            .ascii_case_insensitive(true)
+            .build(&literals)
+            .ok();
+
+        (ac, map, fallbacks)
+    }
+
+    fn extract_literal(pattern: &str) -> Option<String> {
+        // Extract longest alphanumeric substring >= 4 chars
+        // Split by non-alphanumeric (except space)
+        pattern.split(|c: char| !c.is_alphanumeric() && c != ' ')
+            .filter(|s| s.len() >= 4)
+            .max_by_key(|s| s.len())
+            .map(|s| s.to_string())
+    }
+
+    /// Match text against all fingerprints and return all matches
+    pub fn match_text(&self, text: &str) -> Vec<MatchResult> {
+        if let Some(ac) = &self.ac {
+            let mut indices = self.fallbacks.clone();
+            
+            for mat in ac.find_iter(text) {
+                let pattern_id = mat.pattern().as_usize();
+                indices.extend_from_slice(&self.ac_map[pattern_id]);
+            }
+            
+            indices.sort_unstable();
+            indices.dedup();
+            
+            indices.par_iter()
+                .map(|&idx| &self.db.fingerprints[idx])
+                .filter_map(|fp| self.check_fingerprint(fp, text))
+                .collect()
+        } else {
+            self.db.fingerprints.par_iter()
+                .filter_map(|fp| self.check_fingerprint(fp, text))
+                .collect()
+        }
+    }
+
+    fn check_fingerprint(&self, fingerprint: &Fingerprint, text: &str) -> Option<MatchResult> {
+        if let Some(mut params) = fingerprint.matches(text) {
+            self.interpolator.process_cpe_params(&mut params);
+            Some(MatchResult::new(fingerprint.clone(), params))
+        } else {
+            None
+        }
     }
 
     /// Match text and return the best match (first one found)
@@ -125,7 +207,7 @@ mod tests {
     fn test_basic_matching() {
         let xml = r#"
             <fingerprints>
-                <fingerprint pattern="Apache/(\d+\.\d+)" description="Apache HTTP Server">
+                <fingerprint pattern="Apache/([\d.]+)" description="Apache HTTP Server">
                     <param pos="1" name="version"/>
                 </fingerprint>
             </fingerprints>

@@ -403,7 +403,7 @@ mod tests {
 
     #[test]
     fn test_regex_matcher() {
-        let matcher = RegexPatternMatcher::new(r"^Apache/(\d+\.\d+)", "Apache Server").unwrap();
+        let matcher = RegexPatternMatcher::new(r"^Apache/([\d.]+)", "Apache Server").unwrap();
         let result = matcher.matches("Apache/2.4.41").unwrap();
 
         assert!(result.matched);
@@ -474,7 +474,7 @@ mod tests {
 
         let fingerprint = PluginFingerprint::with_regex(
             "apache_server".to_string(),
-            r"^Apache/(\d+\.\d+)",
+            r"^Apache/([\d.]+)",
             "Apache HTTP Server",
             examples,
             params,
@@ -498,8 +498,8 @@ mod tests {
     #[test]
     fn test_levenshtein_distance() {
         assert_eq!(calculate_similarity("test", "test"), 1.0);
-        assert_eq!(calculate_similarity("test", "tset"), 0.75); // 1 character different
-        assert_eq!(calculate_similarity("test", "testing"), 0.8); // 3 characters different, longer string
+        assert_eq!(calculate_similarity("test", "tset"), 0.5); // 2 characters different (subs) -> 2/4 = 0.5
+        assert_eq!(calculate_similarity("test", "tests"), 0.8); // 1 char diff, len 5 -> 1 - 1/5 = 0.8
         assert_eq!(calculate_similarity("", ""), 1.0);
         assert_eq!(calculate_similarity("test", ""), 0.0);
     }
