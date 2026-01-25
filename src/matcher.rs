@@ -72,7 +72,9 @@ impl Matcher {
         Self::new(db)
     }
 
-    fn build_prefilter(db: &FingerprintDatabase) -> (Option<AhoCorasick>, Vec<Vec<usize>>, Vec<usize>) {
+    fn build_prefilter(
+        db: &FingerprintDatabase,
+    ) -> (Option<AhoCorasick>, Vec<Vec<usize>>, Vec<usize>) {
         let mut literals = Vec::new();
         let mut map = Vec::new(); // map[literal_index] -> vec[fp_indices]
         let mut fallbacks = Vec::new();
@@ -80,7 +82,7 @@ impl Matcher {
 
         for (i, fp) in db.fingerprints.iter().enumerate() {
             let pattern = fp.pattern.as_str();
-            
+
             // Heuristic: If pattern contains '|', it's an alternation, risky to pick one literal.
             if pattern.contains('|') {
                 fallbacks.push(i);
@@ -119,7 +121,8 @@ impl Matcher {
     fn extract_literal(pattern: &str) -> Option<String> {
         // Extract longest alphanumeric substring >= 4 chars
         // Split by non-alphanumeric (except space)
-        pattern.split(|c: char| !c.is_alphanumeric() && c != ' ')
+        pattern
+            .split(|c: char| !c.is_alphanumeric() && c != ' ')
             .filter(|s| s.len() >= 4)
             .max_by_key(|s| s.len())
             .map(|s| s.to_string())
@@ -129,21 +132,24 @@ impl Matcher {
     pub fn match_text(&self, text: &str) -> Vec<MatchResult> {
         if let Some(ac) = &self.ac {
             let mut indices = self.fallbacks.clone();
-            
+
             for mat in ac.find_iter(text) {
                 let pattern_id = mat.pattern().as_usize();
                 indices.extend_from_slice(&self.ac_map[pattern_id]);
             }
-            
+
             indices.sort_unstable();
             indices.dedup();
-            
-            indices.par_iter()
+
+            indices
+                .par_iter()
                 .map(|&idx| &self.db.fingerprints[idx])
                 .filter_map(|fp| self.check_fingerprint(fp, text))
                 .collect()
         } else {
-            self.db.fingerprints.par_iter()
+            self.db
+                .fingerprints
+                .par_iter()
                 .filter_map(|fp| self.check_fingerprint(fp, text))
                 .collect()
         }

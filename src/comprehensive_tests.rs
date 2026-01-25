@@ -5,10 +5,9 @@
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::{
         error::RecogError,
-        fingerprint::{Fingerprint, FingerprintDatabase},
+        fingerprint::Fingerprint,
         load_fingerprints_from_file, load_fingerprints_from_xml,
         matcher::{MatchResult, Matcher},
         params::{Param, ParamInterpolator},

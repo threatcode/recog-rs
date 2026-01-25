@@ -161,7 +161,7 @@ fn benchmark_batch_matching(c: &mut Criterion) {
 fn benchmark_parameter_interpolation(c: &mut Criterion) {
     use recog::params::ParamInterpolator;
 
-    let mut interpolator = ParamInterpolator::new();
+    let interpolator = ParamInterpolator::new();
     let mut params = HashMap::new();
     params.insert("service.vendor".to_string(), "Apache".to_string());
     params.insert("service.product".to_string(), "HTTP Server".to_string());

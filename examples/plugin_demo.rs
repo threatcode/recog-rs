@@ -94,11 +94,9 @@ fn demonstrate_plugin_architecture() -> RecogResult<()> {
     }
 
     // Demonstrate plugin fingerprint
-    let mut examples = Vec::new();
-    examples.push(Example::new("Apache/2.4.41".to_string()));
+    let examples = vec![Example::new("Apache/2.4.41".to_string())];
 
-    let mut params = Vec::new();
-    params.push(Param::new(1, "version".to_string()));
+    let params = vec![Param::new(1, "version".to_string())];
 
     let plugin_fp = PluginFingerprint::with_regex(
         "apache_plugin".to_string(),
@@ -154,10 +152,11 @@ async fn demonstrate_async_io() -> RecogResult<()> {
 
     // Load databases asynchronously
     println!("⏳ Loading databases asynchronously...");
-    let db1_future = crate::async_loader::load_fingerprints_from_xml_async(xml_content1);
-    let db2_future = crate::async_loader::load_fingerprints_from_xml_async(xml_content2);
+    let db1_future = recog::async_loader::load_fingerprints_from_xml_async(xml_content1);
+    let db2_future = recog::async_loader::load_fingerprints_from_xml_async(xml_content2);
 
-    let (db1, db2) = tokio::try_join!(db1_future, db2_future)?;
+    let (db1, db2): (recog::FingerprintDatabase, recog::FingerprintDatabase) =
+        tokio::try_join!(db1_future, db2_future)?;
 
     println!(
         "✅ Loaded {} fingerprints from database 1",
@@ -235,6 +234,7 @@ async fn demonstrate_streaming_parser() -> RecogResult<()> {
 
 /// Custom pattern matcher example - JSON-like key-value parser
 #[derive(Debug)]
+#[allow(dead_code)]
 struct JsonLikeMatcher {
     expected_key: String,
 }

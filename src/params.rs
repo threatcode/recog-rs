@@ -79,25 +79,29 @@ impl ParamInterpolator {
         self.filter_temp_params(params);
 
         // Map service/os/hw parameters to CPE components
-        let vendor = params.get("cpe.vendor")
+        let vendor = params
+            .get("cpe.vendor")
             .or_else(|| params.get("service.vendor"))
             .or_else(|| params.get("os.vendor"))
             .or_else(|| params.get("hw.vendor"))
             .cloned();
 
-        let product = params.get("cpe.product")
+        let product = params
+            .get("cpe.product")
             .or_else(|| params.get("service.product"))
             .or_else(|| params.get("os.product"))
             .or_else(|| params.get("hw.product"))
             .cloned();
 
-        let version = params.get("cpe.version")
+        let version = params
+            .get("cpe.version")
             .or_else(|| params.get("service.version"))
             .or_else(|| params.get("os.version"))
             .or_else(|| params.get("hw.version"))
             .cloned();
 
-        let update = params.get("cpe.update")
+        let update = params
+            .get("cpe.update")
             .or_else(|| params.get("service.update"))
             .or_else(|| params.get("os.update"))
             .or_else(|| params.get("hw.update"))
@@ -105,12 +109,16 @@ impl ParamInterpolator {
             .unwrap_or_else(|| "*".to_string());
 
         if let (Some(v), Some(p)) = (vendor, product) {
-            let part = if params.contains_key("os.vendor") { "o" }
-                      else if params.contains_key("hw.vendor") { "h" }
-                      else { "a" };
+            let part = if params.contains_key("os.vendor") {
+                "o"
+            } else if params.contains_key("hw.vendor") {
+                "h"
+            } else {
+                "a"
+            };
 
             let ver = version.unwrap_or_else(|| "*".to_string());
-            
+
             // Format: cpe:2.3:part:vendor:product:version:update:edition:language:sw_edition:target_sw:target_hw:other
             let cpe = format!(
                 "cpe:2.3:{}:{}:{}:{}:{}:*:*:*:*:*:*",
@@ -235,8 +243,14 @@ mod tests {
     fn test_cpe_escaping() {
         let interpolator = ParamInterpolator::new();
         let mut params = HashMap::new();
-        params.insert("service.vendor".to_string(), "Vendor With Space".to_string());
-        params.insert("service.product".to_string(), "Product(Special)".to_string());
+        params.insert(
+            "service.vendor".to_string(),
+            "Vendor With Space".to_string(),
+        );
+        params.insert(
+            "service.product".to_string(),
+            "Product(Special)".to_string(),
+        );
         params.insert("service.version".to_string(), "1.0".to_string());
 
         interpolator.process_cpe_params(&mut params);

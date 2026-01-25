@@ -3,8 +3,6 @@
 //! This module provides async versions of the core I/O operations for better
 //! performance with large fingerprint databases and concurrent processing.
 
-
-
 use crate::error::{RecogError, RecogResult};
 use crate::fingerprint::{Example, Fingerprint, FingerprintDatabase};
 use crate::params::Param;
@@ -96,36 +94,37 @@ impl StreamingXmlLoader {
         path: P,
     ) -> RecogResult<FingerprintDatabase> {
         let path = path.as_ref().to_path_buf();
-        
+
         let buffer_size = self.buffer_size;
         let db = task::spawn_blocking(move || {
-            let file = std::fs::File::open(&path)
-                .map_err(|e| RecogError::Io(e))?;
+            let file = std::fs::File::open(&path).map_err(RecogError::Io)?;
             let reader = std::io::BufReader::with_capacity(buffer_size, file);
             let mut xml_reader = quick_xml::Reader::from_reader(reader);
             xml_reader.config_mut().trim_text(true);
 
             let mut db = FingerprintDatabase::new();
             let mut buf = Vec::new();
-            
+
             loop {
                 match xml_reader.read_event_into(&mut buf) {
-                    Ok(quick_xml::events::Event::Start(ref e)) if e.name().as_ref() == b"fingerprint" => {
+                    Ok(quick_xml::events::Event::Start(ref e))
+                        if e.name().as_ref() == b"fingerprint" =>
+                    {
                         // We found a fingerprint, reconstruct the XML for this element
                         let mut fp_xml = String::new();
-                        
+
                         // Reconstruct start tag
                         // Note: capturing attributes is tricky if we just have BytesStart.
-                        // We can use String::from_utf8_lossy on the slice? 
+                        // We can use String::from_utf8_lossy on the slice?
                         // Actually, since we want to deserialize, maybe we can just deserialize directly?
                         // But quick-xml doesn't support deserializing from current position easily without consuming.
-                        
-                        // Valid strategy: 
+
+                        // Valid strategy:
                         // 1. Convert Start event back to text.
                         // 2. Read content to end.
                         // 3. Append End tag.
                         // 4. Deserialize.
-                        
+
                         // Constructing start tag from BytesStart
                         fp_xml.push('<');
                         fp_xml.push_str(&String::from_utf8_lossy(e.name().as_ref()));
@@ -138,24 +137,30 @@ impl StreamingXmlLoader {
                             fp_xml.push('"');
                         }
                         fp_xml.push('>');
-                        
+
                         // Read to end
                         let mut content_buf = Vec::new();
                         // read_to_end expects the END tag name.
-                        xml_reader.read_to_end_into(e.name(), &mut content_buf)
+                        xml_reader
+                            .read_to_end_into(e.name(), &mut content_buf)
                             .map_err(|e| RecogError::custom(e.to_string()))?;
-                            
+
                         fp_xml.push_str(&String::from_utf8_lossy(&content_buf));
-                        
+
                         // Append end tag
                         fp_xml.push_str("</");
                         fp_xml.push_str(&String::from_utf8_lossy(e.name().as_ref()));
                         fp_xml.push('>');
-                        
+
                         // Deserialize
-                        let xml_fp: XmlFingerprint = quick_xml::de::from_str(&fp_xml)
-                            .map_err(|e| RecogError::custom(format!("Failed to parse fingerprint fragment: {}", e)))?;
-                            
+                        let xml_fp: XmlFingerprint =
+                            quick_xml::de::from_str(&fp_xml).map_err(|e| {
+                                RecogError::custom(format!(
+                                    "Failed to parse fingerprint fragment: {}",
+                                    e
+                                ))
+                            })?;
+
                         let fingerprint = xml_fp.into_fingerprint()?;
                         db.add_fingerprint(fingerprint);
                     }
@@ -166,7 +171,8 @@ impl StreamingXmlLoader {
                 buf.clear();
             }
             Ok(db)
-        }).await
+        })
+        .await
         .map_err(|e| RecogError::custom(format!("Task join error: {}", e)))??;
 
         Ok(db)
@@ -380,7 +386,7 @@ mod tests {
 
         let loader = StreamingXmlLoader::new(1024);
         let db = loader.load_large_file_streaming(&xml_file).await.unwrap();
-        
+
         assert_eq!(db.fingerprints.len(), 100);
     }
 }
